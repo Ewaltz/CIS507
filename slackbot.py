@@ -3,11 +3,13 @@ import time
 from slackclient import SlackClient
 from random import randint
 from Crypto.Cipher import AES
+from chatterbot import ChatBot
 
 # ## Bot Setup ##
 
 BOT_NAME = 'guesser'
 SLACK_BOT_TOKEN = '' #slackbot token (unique)
+
 
 #slack_client = SlackClient(os.environ.get('SLACK_BOT_TOKEN'))
 
@@ -49,7 +51,7 @@ def parse_slack_output(slack_rtm_output):
         for output in output_list:
             if output and 'text' in output and AT_BOT in output['text']:
                 # return text after the @ mention, whitespace removed
-                return output['text'].split(AT_BOT)[1].strip(),                        output['channel']
+                return output['text'].split(AT_BOT)[1].strip(),  output['channel']
     return None, None
 
 def encryptMessage(key, iv, message):
@@ -70,6 +72,15 @@ def messageBlock16(message):
         for i in range(appendSize):
             message += " "
     return message
+
+def setupChatterBot():
+    chatbot = ChatBot('Ron Obvious',trainer='chatterbot.trainers.ChatterBotCorpusTrainer')
+    chatbot.train("chatterbot.corpus.english")
+    return chatbot
+
+def chatterMsg(cb, message):
+    
+    return cb.get_response(message).text
 
 
 # ## State Machine Definitions ##
@@ -124,7 +135,8 @@ class InitialState(State):
             slack_client.api_call("chat.postMessage", channel=channel, text=response, as_user=True)
             return None
         else:
-            response = "I don't recognize this command " + command
+            response = chatterMsg(chatbot, command)
+            #response = "I don't recognize this command " + command
             slack_client.api_call("chat.postMessage", channel=channel, text=response, as_user=True)
             return InitialState()
                
@@ -198,6 +210,7 @@ if __name__ == "__main__":
              'John': randint(1,20),
              'Anna': randint(1,20)}
     print(values)
+    chatbot = setupChatterBot()
     target_number = randint(1,100)
     bot = stateMachine()
     bot.run()
